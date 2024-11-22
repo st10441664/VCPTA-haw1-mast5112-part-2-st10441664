@@ -10,7 +10,7 @@ const Payment: React.FC<{ navigation: any; route: any }> = ({
 
   return (
     <LinearGradient
-      colors={isDarkMode ? ["#333", "#354"] : ["white", "#924"]}
+      colors={isDarkMode ? ["#333", "#354"] : ["white", "#354"]}
       style={styles.gradientBackground}
     >
       <View style={styles.container}>

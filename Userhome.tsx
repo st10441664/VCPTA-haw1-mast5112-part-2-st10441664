@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Switch,
-  Image,
   FlatList,
   ActivityIndicator,
   TouchableOpacity,
@@ -19,6 +18,7 @@ type MenuItem = {
   newDishName: string;
   description: string;
   price: number;
+  selectedCourses: number[];
 };
 
 const UserHome: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -28,22 +28,53 @@ const UserHome: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [cart, setCart] = useState<MenuItem[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
+  const [averagePrices, setAveragePrices] = useState({
+    Starter: 0,
+    Main: 0,
+    Dessert: 0,
+  });
 
   useEffect(() => {
     const fetchMenuItems = async () => {
       try {
         const menuRef = collection(db, "dishes");
         const querySnapshot = await getDocs(menuRef);
-        const items: MenuItem[] = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as MenuItem[];
+
+        const items: MenuItem[] = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            newDishName: data.newDishName,
+            description: data.description,
+            price: parseFloat(data.price),
+            selectedCourses: data.selectedCourses || [],
+          };
+        });
+
+        const starters = items.filter((item) =>
+          item.selectedCourses.includes(1)
+        );
+        const mains = items.filter((item) => item.selectedCourses.includes(2));
+        const desserts = items.filter((item) =>
+          item.selectedCourses.includes(3)
+        );
+
+        const averageStarter =
+          starters.reduce((sum, item) => sum + item.price, 0) /
+          (starters.length || 1);
+        const averageMain =
+          mains.reduce((sum, item) => sum + item.price, 0) /
+          (mains.length || 1);
+        const averageDessert =
+          desserts.reduce((sum, item) => sum + item.price, 0) /
+          (desserts.length || 1);
 
         setMenuItems(items);
+        setAveragePrices({
+          Starter: parseFloat(averageStarter.toFixed(2)),
+          Main: parseFloat(averageMain.toFixed(2)),
+          Dessert: parseFloat(averageDessert.toFixed(2)),
+        });
       } catch (error) {
         console.error("Error fetching menu items:", error);
       } finally {
@@ -54,9 +85,12 @@ const UserHome: React.FC<{ navigation: any }> = ({ navigation }) => {
     fetchMenuItems();
   }, []);
 
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+  };
+
   const handleAddToCart = (item: MenuItem) => {
     setCart((prevCart) => [...prevCart, item]);
-    console.log(`${item.newDishName} added to cart`);
   };
 
   const openDescriptionModal = (item: MenuItem) => {
@@ -87,7 +121,7 @@ const UserHome: React.FC<{ navigation: any }> = ({ navigation }) => {
         <Text style={[styles.Text, { color: isDarkMode ? "white" : "#333" }]}>
           Welcome back
         </Text>
-       
+
         <Text
           style={[
             styles.NumberOfItems,
@@ -142,7 +176,11 @@ const UserHome: React.FC<{ navigation: any }> = ({ navigation }) => {
           style={[styles.AvPrice, { color: isDarkMode ? "white" : "#333" }]}
         >
           The average price of our courses:{"\n"}
-          Starter: R 63{"\n"}Main: R 31{"\n"}Dessert: R 46
+          Starter: R {averagePrices.Starter}
+          {"\n"}
+          Main: R {averagePrices.Main}
+          {"\n"}
+          Dessert: R {averagePrices.Dessert}
         </Text>
 
         <View style={styles.buttonContainer}>
@@ -216,7 +254,6 @@ const styles = StyleSheet.create({
   gradientBackground: {
     flex: 1,
   },
-
   Text: {
     marginTop: 20,
     fontSize: 40,
@@ -228,13 +265,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     marginTop: 20,
     height: 380,
-  },
-  menuContainer: {
-    flexDirection: "column",
-
-    marginVertical: 5,
-
-    borderWidth: 3,
   },
   menuItems: {
     flexDirection: "row",
